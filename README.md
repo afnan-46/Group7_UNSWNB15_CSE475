@@ -1,8 +1,7 @@
-# Graph-Based Network Intrusion Detection on UNSW-NB15
+# Graph-Based Network Intrusion Detection on TON_IoT
 
-**CSE475 Machine Learning · Group 7 · Section 01 · East West University · Fall 2026**
-
-**Track 1: Graph Neural Network.** Hosts are nodes, network flows are edges, and the model classifies each flow.
+**CSE475 Machine Learning · Group 07 · Section 01 · East West University · Fall 2026**
+**Track 1: Graph Neural Network** — hosts are nodes, network flows are edges, and the model classifies each flow.
 
 | Member | Student ID |
 |---|---|
@@ -15,96 +14,106 @@
 
 ## The idea
 
-A typical intrusion detector judges each network flow alone, as one row of numbers. But many attacks only show up in how hosts connect. A port scan is one host contacting many others. A denial-of-service attack is many hosts converging on one target.
-
-We build the traffic as a graph, with each host as a node and each flow as an edge, and train a graph neural network to classify the edges. When the model classifies a flow, it uses both the flow's own features and the behaviour of the two hosts it connects.
+A typical intrusion detector judges each network flow on its own. Many attacks only show up in how machines connect — a scan is one host contacting many others. We build the traffic as a graph, with each host as a node and each flow as an edge, and train a graph neural network to classify the edges. The model sees both the flow's own features and the behaviour of the two hosts it connects.
 
 ## Research question
 
-> Does a host-topology graph improve macro-F1 over a k-nearest-neighbour feature-similarity graph on UNSW-NB15, under the same three-way host-disjoint split and the same training budget?
+> Does a graph built from real host connections improve macro-F1 over a top-K feature-similarity graph on TON_IoT under the same split and training budget, and does any advantage hold for binary detection on source hosts unseen during training?
+
+Ngo et al. (2025) reported that a feature-similarity graph beats real network links. No study has tested that claim on hosts the model has never seen. We do.
 
 ---
 
-## Repository contents
+## Repository layout
 
 ```
 Group7_UNSWNB15_CSE475/
 ├── README.md
-└── TASK-1/
-    ├── group7-unswnb15-task1-eda.ipynb          # EDA notebook, run with all outputs
-    ├── Group7_UNSWNB15_task1_report.pdf         # Task 1 report
-    └── Group7_UNSWNB15_related_work_table.pdf   # Five-paper literature review
+├── report/
+│   ├── task1/Group07_TONIoT_task1_report.pdf        # EDA, research gap, research question
+│   └── task2/Group07_TONIoT_task2_report.pdf        # Baselines, graph construction, GNN explained, first results
+├── code/
+│   ├── task1/Group07_TONIoT_task1_eda.ipynb         # EDA (A–H) + graph, leakage, label and split checks
+│   └── task2/
+│       ├── Group07_TONIoT_task2_baselines.ipynb       # 6 ML baselines, two protocols, full metrics
+│       └── Group07_TONIoT_task2_proposed_model.ipynb  # Graph construction + GNN + explanation + first results
+├── related_work/
+│   ├── Group07_TONIoT_related_work_table.pdf         # Five-paper comparison table
+│   └── papers/                                        # The five paper PDFs (links in papers/README.md)
+└── models/
+    ├── Group07_TONIoT_best.pth                        # Host-graph GNN checkpoint, Protocol M (< 1 MB)
+    └── label_map.json                                 # Class index → class name
 ```
 
-Task 2 and Task 3 folders will be added as each task is completed.
+The repository keeps its original name; the dataset was changed from UNSW-NB15 to TON_IoT with faculty approval (see below), so all files are named `Group07_TONIoT_…`.
 
 ---
 
 ## Dataset
 
-**UNSW-NB15**, created by the Australian Centre for Cyber Security, UNSW Canberra (Moustafa & Slay, 2015).
+**TON_IoT — network dataset**, Cyber Range and IoT Labs, UNSW Canberra (Moustafa, 2021). We use the training/testing subset, `train_test_network.csv`: **211,043 flows, 44 columns, 10 classes** (normal 50,000; eight attack types with 20,000 each; MITM 1,043). Worst class ratio **48 : 1**.
 
-We use the **full release** (`UNSW-NB15_1.csv` to `UNSW-NB15_4.csv`, 49 features), because only this release includes the source and destination IP addresses needed to build a host graph. The smaller partitioned release (training and testing CSVs) has no IP columns.
+- Official source: https://research.unsw.edu.au/projects/toniot-datasets (folder `Train_Test_datasets`)
+- The data is not stored in this repository.
 
-- **Kaggle:** [mrwellsdavid/unsw-nb15](https://www.kaggle.com/datasets/mrwellsdavid/unsw-nb15)
-- **Official source:** [UNSW-NB15 dataset page](https://research.unsw.edu.au/projects/unsw-nb15-dataset)
+### Why we changed dataset
 
-The data is not stored in this repository because of its size (about 590 MB).
+Our first choice, UNSW-NB15, had a majority-to-minority ratio of 11,322 : 1 (Normal 600,079 vs Worms 53). On our faculty's advice we moved to TON_IoT, which the course brief lists for Track 1, keeps the source and destination IP columns needed for a host graph, and is far less imbalanced. The faculty approved the change on 17 October 2026. The earlier work is kept in `archive/unsw-nb15/`.
 
 ---
 
 ## How to run
 
-The notebook is written for Kaggle and runs on **CPU only**. It does not need a GPU.
+The notebook is written for Kaggle and runs on **CPU only**.
 
-1. Open the notebook on Kaggle: **File → Import Notebook** and upload `TASK-1/group7-unswnb15-task1-eda.ipynb`.
-2. Attach the data: **+ Add Input → Datasets**, search `mrwellsdavid/unsw-nb15`, and click **Add**.
-3. Click **Run All**. A full run takes about 10 minutes.
+1. On Kaggle: **File → Import Notebook**, upload `code/task1/Group07_TONIoT_task1_eda.ipynb`.
+2. **+ Add Input → Datasets**, add a dataset containing `train_test_network.csv` (or upload the file from the official source as your own dataset).
+3. **Run All**. Run the Task 2 notebooks the same way; both print a split fingerprint, which must match.
 
-The notebook finds the dataset files automatically, so no paths need editing. Figures are saved to `/kaggle/working/figures/` and summary tables to `/kaggle/working/tables/`.
+The Task 1 and baselines notebooks find the file by its columns. The proposed-model notebook sets `DATA_PATH` in its load cell; edit it if your dataset path differs. Outputs go to `figures/`, `tables/` and `findings.json`.
 
-**Settings you can change** (cell 0.3):
-- `MAX_ROWS = 700_000`: rows to load. The default takes the first 175,000 rows of each of the four files. Set it to `None` to load all 2,540,044 rows if memory allows.
-
-**Python packages:** pandas, numpy, matplotlib, seaborn, scikit-learn, plotly. These are all preinstalled on Kaggle. `umap-learn` is optional.
-
----
-
-## Task 1 results
-
-From 700,000 flows of the full release:
-
-| Finding | Result |
-|---|---|
-| Class balance | 85.73% normal, 14.27% attack |
-| Largest vs smallest class | Normal 600,079 vs Worms 53 (11,322 : 1) |
-| Majority-class baseline | 85.73% accuracy, but only about 9.2% macro-F1 |
-| Duplicate rows | 142,474 (20.35%) |
-| Missing values | `is_ftp_login` 49.3%, `ct_flw_http_mthd` 47.2% |
-| Highly correlated pairs (\|r\| > 0.95) | 11 |
-| Host graph | 48 hosts, 292 host pairs, 700,000 flows |
-| Attack sources | All attacks come from 4 IP addresses |
-| Leakage test | Using only the IP addresses gives 0.965 macro-F1 |
-| Host-disjoint split | 72 / 13 / 15%, zero host overlap, all 10 classes in every part |
-
-### What this means for the model
-
-- **We judge models on macro-F1, not accuracy.** With an 11,322 : 1 imbalance, a model that always predicts "normal" still gets 85.73% accuracy.
-- **IP addresses are never used as model input.** A model can reach 0.965 macro-F1 from the IP addresses alone, just by recognising the four attacking machines. IP addresses are used only to decide which flows share a node in the graph.
-- **The data is split by host.** No host appears in more than one of the training, validation and test sets, so the model is always tested on machines it has never seen.
-- **Duplicates are removed before splitting**, so the same row cannot appear in both the training and test sets.
-
-The full analysis is in the Task 1 report.
+Packages: pandas, numpy, matplotlib, seaborn, scikit-learn, plotly (all preinstalled on Kaggle); `umap-learn` optional.
 
 ---
 
 ## Rules every experiment follows
 
-1. Separate training, validation and test sets, split by host. The test set is used only once, for the final evaluation.
-2. Identifier columns (`srcip`, `dstip`, `sport`, `dsport`, `stime`, `ltime`) are never model features.
-3. The graph is built from training flows only. Validation and test flows are added at evaluation time.
-4. Every scaler, imputer and encoder is fitted on the training set only, and refitted inside each cross-validation fold.
-5. Results are reported as macro-F1 and per-class recall, plus weighted F1 so they can be compared with published papers.
+1. **Two evaluation protocols.** Each attack type in TON_IoT comes from a few specific machines, so a multiclass split by machine is impossible (Task 1, §P4). Multiclass results use a stratified flow-level 70/15/15 split after removing exact duplicates; binary (normal vs attack) results use a split where train, validation and test share no source host. The test set is used once, at the end.
+2. **No identifiers as features.** `ts`, `src_ip`, `dst_ip`, `src_port`, `dst_port` are never model inputs. IPs only define graph nodes.
+3. **The graph is built from training flows only.** Validation and test flows are added at evaluation time.
+4. **Everything is fitted on training data only** — scalers, encoders, imputers — and refitted inside every cross-validation fold.
+5. **Macro-F1 and per-class recall** are the headline metrics, with weighted F1 reported for comparison with published work.
+6. **Label quality is checked.** Known ToN-IoT labelling artefacts (Raskovalov et al., 2022) are measured and their effect tested.
+
+---
+
+## Related work
+
+| Paper | Role in our review |
+|---|---|
+| E-GraphSAGE (Lo et al., 2022) | Method blueprint; comparison target (ToN-IoT multiclass weighted F1 0.87) |
+| Raskovalov et al. (2022) | ToN-IoT labelling errors; cleaning moved accuracy 0.87 → 0.97 |
+| TKSGF (Ngo et al., 2025) | Opposing hypothesis: similarity graph beats real topology |
+| DIGNN-A (Liu & Guo, 2025) | Alternative design: dynamic, line-graph GNN |
+| REAL-IoT (Zhan et al., 2025) | Published GNN scores do not transfer to new data |
+
+Full review: `related_work/Group07_TONIoT_related_work_table.pdf`.
+
+---
+
+## Task 2 — first results
+
+Same split in both notebooks (fingerprint `70dd7b8009`). Test macro-F1:
+
+| Model | Protocol M (10 classes) | Protocol B (binary, unseen source hosts) |
+|---|---|---|
+| XGBoost (best baseline) | **0.9509** | **0.9872** |
+| Random Forest | 0.9501 | 0.8791 |
+| MLP | 0.9357 | 0.8731 |
+| No-graph control (our network, 0 GNN layers) | 0.8841 | 0.9886 |
+| Host-graph GNN (ours, 2 EdgeSAGE layers) | 0.6262 | 0.4122 |
+
+In this first run the host graph does **not** help: several attack types are sent from the same few hosts, so host context blurs them (DDoS and password recall collapse), and the GNN stopped early at epoch 13. Task 3 tests longer training, a gated host/flow model and the top-K similarity graph. Full analysis: `report/task2/`.
 
 ---
 
@@ -113,18 +122,5 @@ The full analysis is in the Task 1 report.
 | Task | Content | Status |
 |---|---|---|
 | Task 1 | EDA, five-paper review, research gap, research question | ✅ Complete |
-| Task 2 | Baselines, host-graph construction, GNN model, first results | ⏳ Upcoming |
+| Task 2 | Baselines, host-graph construction, GNN model + explanation, first results | ✅ Complete |
 | Task 3 | Ablation, 5-fold CV, significance test, SHAP + LIME | ⏳ Upcoming |
-
----
-
-## Key references
-
-1. N. Moustafa and J. Slay, "UNSW-NB15: A comprehensive data set for network intrusion detection systems," MilCIS, 2015.
-2. W. W. Lo et al., "E-GraphSAGE: A graph neural network based intrusion detection system for IoT," IEEE/IFIP NOMS, 2022. [arXiv:2103.16329](https://arxiv.org/abs/2103.16329)
-3. D.-H. Tran and M. Park, "FN-GNN," *Applied Sciences*, 14(16), 6932, 2024.
-4. J. Liu and M. Guo, "DIGNN-A," *Computers, Materials & Continua*, 82(1), 2025.
-5. P. Ansah et al., "Enhancing network intrusion detection using graph convolutional networks fused with traditional systems," *IJDSA*, 21(1), 2025.
-6. R. C. Nwachukwu, "Rethinking graph-based approaches," *JTIF*, 14(1), 2026.
-
-The full list is in the Task 1 report.
